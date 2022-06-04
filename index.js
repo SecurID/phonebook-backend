@@ -30,8 +30,11 @@ const errorHandler = (error, request, response, next) => {
 // this has to be the last loaded middleware.
 app.use(errorHandler)
 
-app.get('/info', (request, response) => {
-    response.send(`<p>Phonebook has info for ${persons.length} people</p><p>${new Date()}</p>`)
+app.get('/info', (request, response, next) => {
+  Person.find({}).then(result => {
+    response.send(`<p>Phonebook has info for ${result.length} people</p><p>${new Date()}</p>`)
+  })
+  .catch(error => next(error))
 })
 
 app.get('/api/persons', (request, response, next) => {
