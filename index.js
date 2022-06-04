@@ -17,25 +17,38 @@ app.use(morgan('tiny', {
 }))
 app.use(express.json())
 
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' })
+  } 
+
+  next(error)
+}
+
+// this has to be the last loaded middleware.
+app.use(errorHandler)
+
 app.get('/info', (request, response) => {
     response.send(`<p>Phonebook has info for ${persons.length} people</p><p>${new Date()}</p>`)
 })
 
-app.get('/api/persons', (request, response) => {
+app.get('/api/persons', (request, response, next) => {
   Person.find({}).then(result => {
     response.json(result)
   })
-  .catch((err) => response.status(400).json({ error: err }))
+  .catch(error => next(error))
 })
 
-app.get('/api/persons/:id', (request, response) => {
+app.get('/api/persons/:id', (request, response, next) => {
     Person.findById(request.params.id).then(person => {
       response.json(person)
     })
-    .catch((err) => response.status(400).json({ error: err }))
+    .catch(error => next(error))
 })
 
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
   const body = request.body
 
   if (body.name === undefined) {
@@ -50,14 +63,29 @@ app.post('/api/persons', (request, response) => {
   person.save().then(savedPerson => {
     response.json(savedPerson)
   })
-  .catch((err) => response.status(400).json({ error: err }))
+  .catch(error => next(error))
 })
 
-app.delete('/api/persons/:id', (request, response) => {
-  Person.deleteOne(request.params.id).then(person => {
-    response.status(200).json({success: true})
+app.put('/api/persons/:id', (request, response, next) => {
+  const body = request.body
+
+  const person = {
+    name: body.name,
+    number: body.number,
+  }
+
+  Person.findByIdAndUpdate(request.params.id, person, {new: true})
+  .then(updatedPerson => {
+    response.json(updatedPerson)
   })
-  .catch((err) => response.status(400).json({ error: err }))
+  .catch(error => next(error))
+})
+
+app.delete('/api/persons/:id', (request, response, next) => {
+  Person.findByIdAndDelete(request.params.id).then(person => {
+    response.status(204).end()
+  })
+  .catch(error => next(error))
 })
 
 const PORT = process.env.PORT
